@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Alfurqan Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white p-6 shadow-md flex flex-col">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Alfurqan</h1>
+        <nav class="flex-grow">
+            <ul class="space-y-2">
+                <li><a href="{{ url_for('main.dashboard') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-home mr-3"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('main.students') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-user-graduate mr-3"></i>Students</a></li>
+                <li><a href="{{ url_for('main.teachers') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-chalkboard-teacher mr-3"></i>Teachers</a></li>
+                <li><a href="{{ url_for('main.classes') }}" class="flex items-center p-3 text-lg font-medium text-white bg-blue-600 rounded-lg transition-colors duration-200"><i class="fas fa-school mr-3"></i>Classes</a></li>
+                <li><a href="{{ url_for('main.fees') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-wallet mr-3"></i>Fees & Payments</a></li>
+                <li><a href="{{ url_for('main.reports') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-chart-bar mr-3"></i>Reports</a></li>
+                <li><a href="{{ url_for('main.settings') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-cogs mr-3"></i>Settings</a></li>
+            </ul>
+        </nav>
+        <div class="mt-8">
+            <a href="{{ url_for('main.logout') }}" class="block text-center p-3 text-lg font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors duration-200"><i class="fas fa-sign-out-alt mr-2"></i>Log Out</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-semibold text-gray-800">{{ title }}</h2>
+        </header>
+
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {% for class_name in classes %}
+                <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-start space-y-4">
+                    <h3 class="text-2xl font-bold text-gray-800">{{ class_name }}</h3>
+                    <ul class="w-full text-gray-600 space-y-2">
+                        {% for (c, t), fee in fee_structure.items() %}
+                            {% if c == class_name %}
+                                <li class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                                    <span class="font-medium">{{ t }} Fee</span>
+                                    <span class="text-green-600 font-semibold">₦{{ "{:,.2f}".format(fee) }}</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                    <a href="{{ url_for('main.students', student_class=class_name) }}" class="mt-4 w-full text-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        View Students
+                    </a>
+                </div>
+            {% else %}
+                <p class="text-gray-500">No classes found. Register a student to create a class.</p>
+            {% endfor %}
+        </div>
+    </main>
+</body>
+</html>

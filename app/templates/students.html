@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students - Alfurqan Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .flash-message {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 50;
+            transition: all 0.5s ease-in-out;
+            transform: translateX(120%);
+        }
+        .flash-message.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white p-6 shadow-md flex flex-col">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Alfurqan</h1>
+        <nav class="flex-grow">
+            <ul class="space-y-2">
+                <li><a href="{{ url_for('main.dashboard') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-home mr-3"></i>Dashboard</a></li>
+                <li><a href="{{ url_for('main.students') }}" class="flex items-center p-3 text-lg font-medium text-white bg-blue-600 rounded-lg transition-colors duration-200"><i class="fas fa-user-graduate mr-3"></i>Students</a></li>
+                <li><a href="{{ url_for('main.teachers') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-chalkboard-teacher mr-3"></i>Teachers</a></li>
+                <li><a href="{{ url_for('main.manage_classes') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-school mr-3"></i>Classes</a></li>
+                <li><a href="{{ url_for('main.fees') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-wallet mr-3"></i>Fees & Payments</a></li>
+                <li><a href="{{ url_for('main.reports') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-chart-bar mr-3"></i>Reports</a></li>
+                <li><a href="{{ url_for('main.settings') }}" class="flex items-center p-3 text-lg font-medium text-gray-600 hover:bg-gray-200 rounded-lg transition-colors duration-200"><i class="fas fa-cogs mr-3"></i>Settings</a></li>
+            </ul>
+        </nav>
+        <div class="mt-8">
+            <a href="{{ url_for('main.logout') }}" class="block text-center p-3 text-lg font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors duration-200"><i class="fas fa-sign-out-alt mr-2"></i>Log Out</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto">
+        <header class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-semibold text-gray-800">Student Directory</h2>
+            <div class="flex items-center space-x-4">
+                <span class="text-gray-600">Welcome, {{ current_user.username }}!</span>
+                <a href="{{ url_for('main.register_student') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    <i class="fas fa-plus mr-2"></i>New Student
+                </a>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-container" class="space-y-2">
+                {% for category, message in messages %}
+                <div class="flash-message bg-{{ 'green' if category == 'success' else 'red' }}-500 text-white p-4 rounded-lg shadow-md transition-all duration-500 transform translate-x-full" role="alert">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const messages = document.querySelectorAll('#flash-container .flash-message');
+                    messages.forEach((msg, index) => {
+                        setTimeout(() => {
+                            msg.classList.add('show');
+                        }, index * 100);
+                        setTimeout(() => {
+                            msg.classList.remove('show');
+                            msg.classList.add('hide');
+                            msg.addEventListener('transitionend', () => msg.remove());
+                        }, 5000 + index * 100);
+                    });
+                });
+            </script>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Filter and Search Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <form action="{{ url_for('main.students') }}" method="get" class="flex flex-wrap items-center space-x-4">
+                <div class="flex-grow">
+                    <label for="search_query" class="sr-only">Search</label>
+                    <div class="relative">
+                        <input type="text" id="search_query" name="search_query" value="{{ search_query }}" placeholder="Search by name or registration number..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="class_filter" class="sr-only">Filter by Class</label>
+                    <select id="class_filter" name="class" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all" {% if class_filter == 'all' %}selected{% endif %}>All Classes</option>
+                        {% for class_name in classes %}
+                        <option value="{{ class_name }}" {% if class_name == class_filter %}selected{% endif %}>{{ class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="term_filter" class="sr-only">Filter by Term</label>
+                    <select id="term_filter" name="term" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all" {% if term_filter == 'all' %}selected{% endif %}>All Terms</option>
+                        {% for term_name in terms %}
+                        <option value="{{ term_name }}" {% if term_name == term_filter %}selected{% endif %}>{{ term_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-grow">
+                    <label for="status_filter" class="sr-only">Filter by Status</label>
+                    <select id="status_filter" name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="Paid" {% if status_filter == 'Paid' %}selected{% endif %}>Paid</option>
+                        <option value="Defaulter" {% if status_filter == 'Defaulter' %}selected{% endif %}>Defaulter</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    <i class="fas fa-filter mr-2"></i>Apply Filters
+                </button>
+            </form>
+        </div>
+
+        <!-- Student List Table -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            {% if students %}
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reg. Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for student in students %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student.reg_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student.student_class }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student.admission_date }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if student.fee_status == 'Paid' %}bg-green-100 text-green-800{% elif student.fee_status == 'Defaulter' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ student.fee_status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('main.student_details', reg_number=student.reg_number) }}" class="text-blue-600 hover:text-blue-900 mr-2">Details</a>
+                            {% if current_user.role in ['admin', 'officer'] %}
+                            <a href="{{ url_for('main.make_payment', reg_number=student.reg_number) }}" class="text-green-600 hover:text-green-900">Payment</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="p-6 text-center text-gray-500">
+                <p>No students found matching your criteria.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

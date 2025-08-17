@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Alfurqan Academy</title>
+    <!-- Use Tailwind CSS for a modern, responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            flex-shrink: 0;
+            width: 16rem;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .header-bar {
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+        }
+        .content-area {
+            flex-grow: 1;
+        }
+        /* Custom styles for the collapsible menu animation */
+        .collapsible-menu {
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+        }
+        .collapsible-menu.active {
+            max-height: 200px; /* Adjust as needed */
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Sidebar with navigation links -->
+    <aside class="sidebar bg-indigo-900 text-white shadow-lg">
+        <div class="text-2xl font-extrabold px-4 text-center">Alfurqan Academy</div>
+        
+        <!-- Search Bar with a proper form tag -->
+        <form action="{{ url_for('main.search_students') }}" method="GET" class="relative mt-4">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                <i class="fas fa-search text-gray-400"></i>
+            </span>
+            <input type="text" name="query" placeholder="Search students..." class="w-full pl-10 pr-4 py-2 rounded-lg bg-indigo-800 text-white border border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </form>
+        
+        <nav class="space-y-2">
+            <a href="{{ url_for('main.dashboard') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-chart-line"></i><span>Dashboard</span>
+            </a>
+            
+            <!-- Link for Students page -->
+            <a href="{{ url_for('main.students') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-user-graduate"></i><span>Students</span>
+            </a>
+            
+            <a href="{{ url_for('main.teachers') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-chalkboard-teacher"></i><span>Teachers</span>
+            </a>
+
+            <!-- Link for 'Manage Classes' and made admin-only -->
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('main.manage_classes') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-school"></i><span>Manage Classes</span>
+            </a>
+            {% endif %}
+
+            <!-- Link for 'Fees & Payments' -->
+            <a href="{{ url_for('main.fees') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-money-bill-wave"></i><span>Fees & Payments</span>
+            </a>
+
+            <!-- Collapsible Reports Menu -->
+            <div class="reports-menu">
+                <button onclick="toggleMenu('reports-submenu')" class="flex items-center space-x-2 py-2 px-4 w-full text-left rounded-lg transition duration-200 hover:bg-indigo-700 focus:outline-none">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Reports</span>
+                    <i class="fas fa-chevron-down ml-auto transition-transform duration-300 transform"></i>
+                </button>
+                <div id="reports-submenu" class="collapsible-menu pl-8 space-y-2">
+                    <!-- Updated link to point to the new, enhanced reports route -->
+                    <a href="{{ url_for('main.reports') }}" class="block py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-800">Student Reports</a>
+                    <a href="{{ url_for('main.teacher_reports') }}" class="block py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-800">Teacher Reports</a>
+                    <a href="{{ url_for('main.financial_reports') }}" class="block py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-800">Financial Reports</a>
+                </div>
+            </div>
+
+            <!-- Settings link as a regular link for now -->
+            <a href="{{ url_for('main.settings') }}" class="flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-indigo-700">
+                <i class="fas fa-cog"></i><span>Settings</span>
+            </a>
+
+        </nav>
+        
+        <!-- Logout button at the bottom of the sidebar -->
+        <a href="{{ url_for('main.logout') }}" class="mt-auto flex items-center space-x-2 py-2 px-4 rounded-lg transition duration-200 hover:bg-red-700 text-red-100">
+            <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+        </a>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content">
+        <header class="header-bar flex items-center justify-between">
+            <h1 class="text-3xl font-bold text-gray-800">{{ title }}</h1>
+        </header>
+        <div class="content-area bg-white p-6 rounded-lg shadow-md">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        // JavaScript for handling the collapsible menu
+        function toggleMenu(menuId) {
+            const menu = document.getElementById(menuId);
+            const button = menu.previousElementSibling;
+            const icon = button.querySelector('i.fa-chevron-down');
+
+            if (menu.classList.contains('active')) {
+                menu.classList.remove('active');
+                icon.classList.remove('rotate-180');
+            } else {
+                menu.classList.add('active');
+                icon.classList.add('rotate-180');
+            }
+        }
+    </script>
+
+</body>
+</html>

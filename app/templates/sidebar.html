@@ -1,0 +1,49 @@
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <h1 class="logo-text">Alfurqan Academy</h1>
+    </div>
+    <ul class="nav-links">
+        <li>
+            <a href="{{ url_for('main.dashboard') }}">
+                <i class="fas fa-th-large"></i> Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('main.students') }}">
+                <i class="fas fa-users"></i> Students
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('main.teachers') }}">
+                <i class="fas fa-user-tie"></i> Teachers
+            </a>
+        </li>
+        {% if current_user.role == 'admin' %}
+        <li>
+            <a href="{{ url_for('main.manage_classes') }}">
+                <i class="fas fa-chalkboard-teacher"></i> Manage Classes
+            </a>
+        </li>
+        {% endif %}
+        <li>
+            <a href="{{ url_for('main.fees') }}">
+                <i class="fas fa-money-check-alt"></i> Fees & Payments
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('main.reports') }}">
+                <i class="fas fa-chart-line"></i> Reports
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('main.settings') }}">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+        </li>
+    </ul>
+    <div class="logout-link">
+        <a href="{{ url_for('main.logout') }}">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    </div>
+</nav>

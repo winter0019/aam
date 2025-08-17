@@ -1,0 +1,490 @@
+import io
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
+from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from . import db, User, Student, Payment, get_current_school_period, FEE_STRUCTURE
+
+# For PDF generation
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
+# Define a Blueprint for the main application routes
+main = Blueprint('main', __name__)
+
+def get_fee_status(student_reg_number, academic_year_check, term_check):
+    student = Student.query.filter_by(reg_number=student_reg_number).first()
+    if not student:
+        return 'N/A'
+    
+    expected_fee = FEE_STRUCTURE.get((student.student_class, term_check), 0.0)
+    total_paid = db.session.query(db.func.sum(Payment.amount_paid)).filter(
+        Payment.student_reg_number == student_reg_number,
+        Payment.term == term_check,
+        Payment.academic_year == academic_year_check
+    ).scalar() or 0.0
+    
+    if expected_fee > 0:
+        if total_paid >= expected_fee:
+            return 'Paid'
+        else:
+            return 'Defaulter'
+    else:
+        return 'N/A'
+
+@main.route('/create_first_admin')
+def create_first_admin():
+    try:
+        existing_user = User.query.filter_by(username='admin').first()
+        if existing_user:
+            flash('Admin user already exists. You can log in.', 'info')
+            return redirect(url_for('main.login'))
+
+        hashed_password = generate_password_hash('admin')
+        first_admin = User(username='admin', password=hashed_password, role='admin')
+        db.session.add(first_admin)
+        db.session.commit()
+        
+        flash('First admin user created successfully. You can now log in.', 'success')
+        return redirect(url_for('main.login'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('main.login'))
+
+@main.route('/')
+def home():
+    return redirect(url_for('main.dashboard'))
+
+@main.route('/dashboard')
+@login_required
+def dashboard():
+    # --- New Metrics for Dashboard ---
+    total_students = Student.query.count()
+    total_fees_paid = db.session.query(db.func.sum(Payment.amount_paid)).scalar() or 0.0
+    total_officers = User.query.filter_by(role='officer').count()
+    # ---------------------------------
+
+    students = Student.query.order_by(Student.admission_date.desc()).limit(5).all()
+    current_academic_year, current_term = get_current_school_period()
+    students_with_status = []
+    for student in students:
+        student.fee_status = get_fee_status(student.reg_number, current_academic_year, current_term)
+        students_with_status.append(student)
+
+    return render_template(
+        'dashboard.html',
+        students=students_with_status,
+        total_students=total_students,
+        total_fees_paid=total_fees_paid,
+        total_officers=total_officers
+    )
+
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+        
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            flash('Login successful!', 'success')
+            return redirect(url_for('main.dashboard'))
+        else:
+            flash('Invalid username or password.', 'error')
+    return render_template('login.html')
+
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'error')
+        else:
+            hashed_password = generate_password_hash(password)
+            new_user = User(username=username, password=hashed_password, role='user')
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful! You can now log in.', 'success')
+            return redirect(url_for('main.login'))
+    return render_template('register.html')
+    
+@main.route('/register_officer', methods=['GET', 'POST'])
+@login_required
+def register_officer():
+    # Only admins can create officers
+    if current_user.role != 'admin':
+        abort(403)
+    
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username already exists. Please choose a different one.', 'error')
+        else:
+            hashed_password = generate_password_hash(password)
+            new_officer = User(username=username, password=hashed_password, role='officer')
+            db.session.add(new_officer)
+            db.session.commit()
+            flash(f'Officer {username} created successfully!', 'success')
+            return redirect(url_for('main.dashboard'))
+            
+    return render_template('register_officer.html')
+    
+@main.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('main.login'))
+    
+@main.route('/register_student', methods=('GET', 'POST'))
+@login_required
+def register_student():
+    if current_user.role not in ['admin', 'officer']:
+        abort(403)
+        
+    if request.method == 'POST':
+        reg_number = request.form['reg_number'].strip()
+        name = request.form['name'].strip()
+        # The other form fields are not strictly required, so we don't validate them here.
+        dob = request.form['dob'].strip()
+        gender = request.form['gender'].strip()
+        address = request.form['address'].strip()
+        phone = request.form['phone'].strip()
+        email = request.form['email'].strip()
+        student_class = request.form['class'].strip()
+        term = request.form['term'].strip()
+        academic_year = request.form['academic_year'].strip()
+        admission_date = datetime.now().strftime('%Y-%m-%d')
+        
+        # --- FIX: Add validation for required fields ---
+        if not reg_number or not name:
+            flash('Error: Student registration number and name are required.', 'error')
+            # Redirect back to the form to prevent the database error.
+            classes = sorted(list(set(item[0] for item in FEE_STRUCTURE.keys())))
+            terms = sorted(list(set(item[1] for item in FEE_STRUCTURE.keys())))
+            current_year_val = datetime.now().year
+            academic_years = [f"{y}/{y+1}" for y in range(current_year_val - 2, current_year_val + 3)]
+            return render_template('register_student.html', classes=classes, terms=terms, academic_years=academic_years)
+
+        existing_student = Student.query.filter_by(reg_number=reg_number).first()
+        if existing_student:
+            flash(f'Error: Student with Registration Number {reg_number} already exists.', 'error')
+        else:
+            try:
+                new_student = Student(
+                    reg_number=reg_number,
+                    name=name,
+                    dob=dob,
+                    gender=gender,
+                    address=address,
+                    phone=phone,
+                    email=email,
+                    student_class=student_class,
+                    term=term,
+                    academic_year=academic_year,
+                    admission_date=admission_date
+                )
+                db.session.add(new_student)
+                db.session.commit()
+                flash(f'Student {name} registered successfully!', 'success')
+                return redirect(url_for('main.student_details', reg_number=reg_number))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Database error: {e}', 'error')
+
+    classes = sorted(list(set(item[0] for item in FEE_STRUCTURE.keys())))
+    terms = sorted(list(set(item[1] for item in FEE_STRUCTURE.keys())))
+    current_year_val = datetime.now().year
+    academic_years = [f"{y}/{y+1}" for y in range(current_year_val - 2, current_year_val + 3)]
+
+    return render_template('register_student.html', classes=classes, terms=terms, academic_years=academic_years)
+    
+@main.route('/students', defaults={'student_class': None})
+@main.route('/students/<student_class>')
+@login_required
+def students(student_class):
+    status_filter = request.args.get('status', 'all')
+    class_filter = student_class or request.args.get('class', 'all')
+    term_filter = request.args.get('term', 'all')
+    search_query = request.args.get('search_query', '').strip()
+
+    query = Student.query
+
+    if search_query:
+        query = query.filter(db.or_(Student.name.ilike(f'%{search_query}%'), Student.reg_number.ilike(f'%{search_query}%')))
+    if class_filter != 'all' and class_filter is not None:
+        query = query.filter_by(student_class=class_filter)
+    if term_filter != 'all':
+        query = query.filter_by(term=term_filter)
+
+    students_data = query.order_by(Student.name).all()
+    
+    current_academic_year, current_term_for_status = get_current_school_period()
+    students_with_status = []
+    for student in students_data:
+        student.fee_status = get_fee_status(student.reg_number, current_academic_year, current_term_for_status)
+        students_with_status.append(student)
+
+    if status_filter != 'all':
+        students_with_status = [s for s in students_with_status if s.fee_status == status_filter]
+
+    all_classes = sorted(list(set(s.student_class for s in Student.query.all())))
+    all_terms = sorted(list(set(s.term for s in Student.query.all())))
+
+    return render_template(
+        'students.html',
+        students=students_with_status,
+        status_filter=status_filter,
+        class_filter=class_filter,
+        term_filter=term_filter,
+        search_query=search_query,
+        classes=all_classes,
+        terms=all_terms
+    )
+
+@main.route('/student/<reg_number>')
+@login_required
+def student_details(reg_number):
+    student = Student.query.filter_by(reg_number=reg_number).first()
+    if student is None:
+        flash('Student not found!', 'error')
+        return redirect(url_for('main.students'))
+
+    payments = Payment.query.filter_by(student_reg_number=reg_number).order_by(
+        Payment.payment_date.desc(),
+        Payment.academic_year.desc(),
+        Payment.term.desc()
+    ).all()
+    current_academic_year, current_term = get_current_school_period()
+    student_fee_status = get_fee_status(reg_number, current_academic_year, current_term)
+    
+    fee_breakdown = {}
+    all_years_terms = set()
+    
+    if student.academic_year and student.term:
+        all_years_terms.add((student.academic_year, student.term))
+    for p in payments:
+        all_years_terms.add((p.academic_year, p.term))
+    all_years_terms.add((current_academic_year, current_term))
+    
+    for year, term in sorted(list(all_years_terms)):
+        expected_fee_key = (student.student_class, term)
+        expected_amount = FEE_STRUCTURE.get(expected_fee_key, 0.0)
+
+        total_paid_for_period = db.session.query(db.func.sum(Payment.amount_paid)).filter(
+            Payment.student_reg_number == reg_number,
+            Payment.term == term,
+            Payment.academic_year == year
+        ).scalar() or 0.0
+        
+        outstanding_amount = expected_amount - total_paid_for_period
+
+        fee_breakdown[f"{term} {year}"] = {
+            'expected': expected_amount,
+            'paid': total_paid_for_period,
+            'outstanding': outstanding_amount
+        }
+    
+    def sort_key_for_fee_breakdown(item):
+        period_str = item[0]
+        parts = period_str.split(' ')
+        term_name = ' '.join(parts[:-1]) if len(parts) > 1 else parts[0]
+        year_part = parts[-1] if len(parts) > 1 else ""
+        
+        try:
+            start_year = int(year_part.split('/')[0])
+        except (ValueError, IndexError):
+            start_year = 0
+        
+        term_order = ['First Term', 'Second Term', 'Third Term']
+        try:
+            term_index = term_order.index(term_name)
+        except ValueError:
+            term_index = -1
+        
+        return (start_year, term_index)
+
+    sorted_fee_breakdown = sorted(fee_breakdown.items(), key=sort_key_for_fee_breakdown, reverse=True)
+    sorted_fee_breakdown_dict = {k: v for k, v in sorted_fee_breakdown}
+
+    return render_template('student_details.html',
+                           student=student,
+                           payments=payments,
+                           fee_status=student_fee_status,
+                           fee_breakdown=sorted_fee_breakdown_dict,
+                           current_academic_year=current_academic_year,
+                           current_term=current_term
+                           )
+
+@main.route('/make_payment/<reg_number>', methods=['GET', 'POST'])
+@login_required
+def make_payment(reg_number):
+    if current_user.role not in ['admin', 'officer']:
+        abort(403)
+        
+    student = Student.query.filter_by(reg_number=reg_number).first()
+    if student is None:
+        flash('Student not found!', 'error')
+        return redirect(url_for('main.students'))
+
+    if request.method == 'POST':
+        amount_str = request.form['amount_paid'].strip()
+        term = request.form['term'].strip()
+        academic_year = request.form['academic_year'].strip()
+        recorded_by_user = current_user.id
+        
+        try:
+            amount_paid = float(amount_str)
+            if amount_paid <= 0:
+                flash('Payment amount must be positive.', 'error')
+            else:
+                payment_date = datetime.now().strftime('%Y-%m-%d')
+                new_payment = Payment(
+                    student_reg_number=reg_number,
+                    term=term,
+                    academic_year=academic_year,
+                    amount_paid=amount_paid,
+                    payment_date=payment_date,
+                    recorded_by=recorded_by_user
+                )
+                db.session.add(new_payment)
+                db.session.commit()
+                flash(f'Payment of ₦{amount_paid:,.2f} recorded for {student.name} for {term} {academic_year}.', 'success')
+                return redirect(url_for('main.student_details', reg_number=reg_number))
+        except ValueError:
+            flash('Invalid amount. Please enter a valid number.', 'error')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Database error: {e}', 'error')
+
+    terms = sorted(list(set(item[1] for item in FEE_STRUCTURE.keys())))
+    current_year_val = datetime.now().year
+    academic_years = [f"{y}/{y+1}" for y in range(current_year_val - 2, current_year_val + 3)]
+    
+    pre_selected_academic_year, pre_selected_term = get_current_school_period()
+
+    return render_template('make_payment.html',
+                           student=student,
+                           terms=terms,
+                           academic_years=academic_years,
+                           pre_selected_term=pre_selected_term,
+                           pre_selected_academic_year=pre_selected_academic_year)
+
+@main.route('/edit_student/<reg_number>', methods=['GET', 'POST'])
+@login_required
+def edit_student(reg_number):
+    student = Student.query.filter_by(reg_number=reg_number).first_or_404()
+    if current_user.role != 'admin':
+        abort(403)
+        
+    if request.method == 'POST':
+        try:
+            student.name = request.form['name'].strip()
+            student.dob = request.form['dob'].strip()
+            student.gender = request.form['gender'].strip()
+            student.address = request.form['address'].strip()
+            student.phone = request.form['phone'].strip()
+            student.email = request.form['email'].strip()
+            student.student_class = request.form['class'].strip()
+            student.term = request.form['term'].strip()
+            student.academic_year = request.form['academic_year'].strip()
+            db.session.commit()
+            flash(f'Student {student.name} updated successfully!', 'success')
+            return redirect(url_for('main.student_details', reg_number=reg_number))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating student: {e}', 'error')
+
+    classes = sorted(list(set(item[0] for item in FEE_STRUCTURE.keys())))
+    terms = sorted(list(set(item[1] for item in FEE_STRUCTURE.keys())))
+    current_year_val = datetime.now().year
+    academic_years = [f"{y}/{y+1}" for y in range(current_year_val - 2, current_year_val + 3)]
+
+    return render_template('edit_student.html', student=student, classes=classes, terms=terms, academic_years=academic_years)
+
+@main.route('/search_students', methods=['GET'])
+@login_required
+def search_students():
+    """
+    Handles student search requests by name or registration number.
+    Renders a page with the search results.
+    """
+    search_query = request.args.get('query', '').strip()
+
+    if search_query:
+        results = Student.query.filter(
+            db.or_(
+                Student.name.ilike(f'%{search_query}%'),
+                Student.reg_number.ilike(f'%{search_query}%')
+            )
+        ).order_by(Student.name).all()
+    else:
+        results = []
+
+    return render_template('search_results.html', query=search_query, students=results)
+
+@main.route('/download_receipt/<int:payment_id>')
+@login_required
+def download_receipt(payment_id):
+    """
+    Generates a PDF payment receipt for a given payment ID and sends it as a download.
+    """
+    payment = Payment.query.get_or_404(payment_id)
+    student = Student.query.filter_by(reg_number=payment.student_reg_number).first_or_404()
+    recorded_by_user = User.query.get_or_404(payment.recorded_by)
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Header
+    story.append(Paragraph("<b>Payment Receipt</b>", styles['h1']))
+    story.append(Spacer(1, 0.2 * inch))
+
+    # Payment details
+    story.append(Paragraph(f"<b>Student Name:</b> {student.name}", styles['Normal']))
+    story.append(Paragraph(f"<b>Registration Number:</b> {student.reg_number}", styles['Normal']))
+    story.append(Paragraph(f"<b>Class:</b> {student.student_class}", styles['Normal']))
+    story.append(Spacer(1, 0.1 * inch))
+    story.append(Paragraph(f"<b>Amount Paid:</b> ₦{payment.amount_paid:,.2f}", styles['Normal']))
+    story.append(Paragraph(f"<b>Payment Date:</b> {payment.payment_date}", styles['Normal']))
+    story.append(Paragraph(f"<b>Term:</b> {payment.term}", styles['Normal']))
+    story.append(Paragraph(f"<b>Academic Year:</b> {payment.academic_year}", styles['Normal']))
+    story.append(Spacer(1, 0.1 * inch))
+    story.append(Paragraph(f"<b>Recorded By:</b> {recorded_by_user.username}", styles['Normal']))
+    story.append(Spacer(1, 0.4 * inch))
+    story.append(Paragraph("<i>Thank you for your payment.</i>", styles['Italic']))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    filename = f"receipt_{student.name.replace(' ', '_')}_{payment.id}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )
+
+@main.route('/fees')
+@login_required
+def fees():
+    return render_template('fees.html', title='Fees & Payments', fee_structure=FEE_STRUCTURE)
+
+@main.route('/payments')
+@login_required
+def payments():
+    all_payments = Payment.query.order_by(Payment.payment_date.desc()).all()
+    return render_template('payments.html', title='All Payments', payments=all_payments)

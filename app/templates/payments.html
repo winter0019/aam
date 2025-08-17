@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}All Payments{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-3xl font-bold text-gray-900">Payment Records</h2>
+        <a href="{{ url_for('main.dashboard') }}" class="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+            <span class="inline-flex items-center">
+                <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Dashboard
+            </span>
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        {% if payments %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reg No.</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount Paid</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Academic Period</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for payment in payments %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('main.student_details', reg_number=payment.student_reg_number) }}" class="text-blue-600 hover:underline">{{ payment.student.name if payment.student else 'N/A' }}</a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ payment.student_reg_number }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{{ "{:,.2f}".format(payment.amount_paid) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ payment.term }} {{ payment.academic_year }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ payment.payment_date }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="{{ url_for('main.download_receipt', payment_id=payment.id) }}" class="text-blue-600 hover:text-blue-900 transition-colors duration-200">
+                                    <span class="inline-flex items-center">
+                                        <i data-lucide="download" class="w-4 h-4 mr-1"></i> Receipt
+                                    </span>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-gray-500 p-6">No payment records found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

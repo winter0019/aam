@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">Edit Student: {{ student.name }}</h1>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <!-- Ensure your Flask route passes a CSRF token, e.g., from Flask-WTF or a manual implementation -->
+            <form method="POST" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div>
+                    <label for="reg_no" class="block text-sm font-medium text-gray-700">Registration Number:</label>
+                    <input type="text" id="reg_no" name="reg_no" value="{{ student.reg_no }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Student Name:</label>
+                    <input type="text" id="name" name="name" value="{{ student.name }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="date_of_birth" class="block text-sm font-medium text-gray-700">Date of Birth:</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" value="{{ student.date_of_birth }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="class" class="block text-sm font-medium text-gray-700">Class:</label>
+                    <!-- This assumes your Flask route passes a list of available classes -->
+                    <select id="class" name="class" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% for c in classes %}
+                            <option value="{{ c }}" {% if student.student_class == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="term" class="block text-sm font-medium text-gray-700">Term:</label>
+                    <!-- This assumes your Flask route passes a list of terms -->
+                    <select id="term" name="term" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% for t in terms %}
+                            <option value="{{ t }}" {% if student.term == t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="academic_year" class="block text-sm font-medium text-gray-700">Academic Year:</label>
+                    <!-- This assumes your Flask route passes a list of academic years -->
+                    <select id="academic_year" name="academic_year" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        {% for year in academic_years %}
+                            <option value="{{ year }}" {% if student.academic_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="guardian_name" class="block text-sm font-medium text-gray-700">Guardian Name:</label>
+                    <input type="text" id="guardian_name" name="guardian_name" value="{{ student.guardian_name | d('') }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+
+                <div>
+                    <label for="guardian_phone" class="block text-sm font-medium text-gray-700">Guardian Phone:</label>
+                    <input type="text" id="guardian_phone" name="guardian_phone" value="{{ student.guardian_phone | d('') }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+
+                <div class="flex items-center space-x-4 mt-6">
+                    <button type="submit"
+                            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Update Student
+                    </button>
+                    <a href="{{ url_for('main.student_details', reg_number=student.reg_number) }}"
+                       class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

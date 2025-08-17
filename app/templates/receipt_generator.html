@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alfurqan Payment Receipt</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for a clean, modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .receipt-container {
+            border: 1px solid #e5e7eb;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 0.75rem;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 25rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .receipt-header {
+            border-bottom: 2px dashed #6b7280;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .receipt-details div {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .receipt-details span:first-child {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <!-- Main Container -->
+    <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-8 lg:p-12 space-y-8">
+        
+        <!-- Input Form Section -->
+        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+            <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">Payment Details</h1>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Row 1 -->
+                <div>
+                    <label for="studentName" class="block text-sm font-medium text-gray-700">Student Name</label>
+                    <input type="text" id="studentName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="FATIMAH-BATUL IDRIS DANGALAN">
+                </div>
+                <div>
+                    <label for="admissionNo" class="block text-sm font-medium text-gray-700">Admission No.</label>
+                    <input type="text" id="admissionNo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="AAM/25/0001">
+                </div>
+                <!-- Row 2 -->
+                <div>
+                    <label for="studentClass" class="block text-sm font-medium text-gray-700">Class</label>
+                    <input type="text" id="studentClass" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="JSS 1">
+                </div>
+                <div>
+                    <label for="amountPaid" class="block text-sm font-medium text-gray-700">Amount Paid (NGN)</label>
+                    <input type="number" id="amountPaid" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="100000.00">
+                </div>
+                <!-- Row 3 -->
+                <div>
+                    <label for="paymentMethod" class="block text-sm font-medium text-gray-700">Payment Method</label>
+                    <input type="text" id="paymentMethod" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="Cash/Bank/Transfer">
+                </div>
+                <div>
+                    <label for="outstandingBalance" class="block text-sm font-medium text-gray-700">Outstanding Balance (NGN)</label>
+                    <input type="number" id="outstandingBalance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="0.00">
+                </div>
+                <!-- Row 4 -->
+                <div>
+                    <label for="term" class="block text-sm font-medium text-gray-700">Term</label>
+                    <input type="text" id="term" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="First Term">
+                </div>
+                <div>
+                    <label for="academicYear" class="block text-sm font-medium text-gray-700">Academic Year</label>
+                    <input type="text" id="academicYear" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="2024/2025">
+                </div>
+                <!-- Row 5 -->
+                <div class="md:col-span-2">
+                    <label for="recordedBy" class="block text-sm font-medium text-gray-700">Recorded By</label>
+                    <input type="text" id="recordedBy" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="admin2">
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="mt-8 text-center">
+                <button id="generate-button" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform duration-200 ease-in-out transform hover:scale-105">
+                    Generate Receipt
+                </button>
+            </div>
+        </div>
+
+        <!-- Receipt Preview Section -->
+        <div id="receiptPreview" class="bg-gray-100 p-6 rounded-lg border border-gray-200">
+            <h2 class="text-2xl font-bold text-center text-blue-700 mb-6">Receipt Preview</h2>
+            <div id="receiptContainer" class="receipt-container hidden">
+                <!-- Receipt content will be dynamically generated here -->
+            </div>
+            <!-- Download Button -->
+            <div id="download-section" class="mt-6 text-center hidden">
+                <button id="download-button" class="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-transform duration-200 ease-in-out transform hover:scale-105">
+                    Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- jsPDF and html2canvas libraries for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- JavaScript for dynamic generation -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const generateButton = document.getElementById('generate-button');
+            const downloadButton = document.getElementById('download-button');
+            const downloadSection = document.getElementById('download-section');
+            const receiptContainer = document.getElementById('receiptContainer');
+
+            // Function to format the date as YYYY-MM-DD
+            function formatDate(date) {
+                const d = new Date(date);
+                let month = '' + (d.getMonth() + 1);
+                let day = '' + d.getDate();
+                const year = d.getFullYear();
+
+                if (month.length < 2) month = '0' + month;
+                if (day.length < 2) day = '0' + day;
+
+                return [year, month, day].join('-');
+            }
+            
+            // This function generates a new receipt number.
+            // In a real application, this would come from a database.
+            function generateReceiptNumber() {
+                // A simple placeholder for now.
+                return `RCPT-${Math.floor(Math.random() * 1000000)}`;
+            }
+
+            // Function to handle generating the receipt preview
+            function generateReceipt() {
+                const studentName = document.getElementById('studentName').value || 'N/A';
+                const admissionNo = document.getElementById('admissionNo').value || 'N/A';
+                const studentClass = document.getElementById('studentClass').value || 'N/A';
+                const amountPaid = document.getElementById('amountPaid').value || '0';
+                const paymentMethod = document.getElementById('paymentMethod').value || 'N/A';
+                const outstandingBalance = document.getElementById('outstandingBalance').value || '0';
+                const term = document.getElementById('term').value || 'N/A';
+                const academicYear = document.getElementById('academicYear').value || 'N/A';
+                const recordedBy = document.getElementById('recordedBy').value || 'N/A';
+
+                // Check if essential fields are filled
+                if (!studentName || !amountPaid || !studentClass) {
+                    receiptContainer.innerHTML = `
+                        <p class="text-center text-red-500">Please fill out all required fields.</p>
+                    `;
+                    receiptContainer.classList.remove('hidden');
+                    return;
+                }
+
+                const currentDate = formatDate(new Date());
+                const receiptNo = generateReceiptNumber();
+
+                const receiptHtml = `
+                    <div class="text-center mb-6">
+                        <!-- School Logo -->
+                        <img src="https://placehold.co/80x80/fff/000?text=Logo" alt="School Logo" class="mx-auto mb-2 rounded-full">
+                        <h1 class="text-2xl font-bold text-gray-900">Alfurqan International Academy</h1>
+                        <p class="text-sm text-gray-600">"Knowledge is Power"</p>
+                    </div>
+                    <div class="receipt-header">
+                        <h2 class="text-lg font-semibold text-gray-800 text-center">OFFICIAL RECEIPT</h2>
+                    </div>
+                    <div class="receipt-details">
+                        <div>
+                            <span>Receipt No:</span>
+                            <span>${receiptNo}</span>
+                        </div>
+                        <div>
+                            <span>Date:</span>
+                            <span>${currentDate}</span>
+                        </div>
+                        <div>
+                            <span>Student's Name:</span>
+                            <span>${studentName}</span>
+                        </div>
+                        <div>
+                            <span>Admission No:</span>
+                            <span>${admissionNo}</span>
+                        </div>
+                        <div>
+                            <span>Class:</span>
+                            <span>${studentClass}</span>
+                        </div>
+                        <div>
+                            <span>Term/Session:</span>
+                            <span>${term} / ${academicYear}</span>
+                        </div>
+                        <div>
+                            <span>Amount Paid:</span>
+                            <span class="font-bold">NGN ${parseFloat(amountPaid).toFixed(2)}</span>
+                        </div>
+                        <div>
+                            <span>Payment Method:</span>
+                            <span>${paymentMethod}</span>
+                        </div>
+                        <div>
+                            <span>Outstanding Balance:</span>
+                            <span>NGN ${parseFloat(outstandingBalance).toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-300">
+                        <p class="text-center text-sm text-gray-700">Recorded By: ${recordedBy}</p>
+                        <div class="mt-4 border-t border-dashed border-gray-400"></div>
+                        <p class="text-center text-xs mt-2 text-gray-500">Thank you for your payment.</p>
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-center">
+                                <div class="w-24 h-px bg-gray-400 mx-auto mb-1"></div>
+                                <span class="text-sm text-gray-600">Bursar/Cashier</span>
+                            </div>
+                            <div class="text-center">
+                                <div class="w-24 h-px bg-gray-400 mx-auto mb-1"></div>
+                                <span class="text-sm text-gray-600">Principal</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                receiptContainer.innerHTML = receiptHtml;
+                receiptContainer.classList.remove('hidden');
+                downloadSection.classList.remove('hidden'); // Show the download button
+            }
+
+            // Function to handle PDF download
+            function downloadReceipt() {
+                const { jsPDF } = window.jspdf;
+                const receiptElement = document.getElementById('receiptContainer');
+                
+                html2canvas(receiptElement, { scale: 2 }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 190;
+                    const pageHeight = 297;
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'JPEG', 10, position + 10, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft > 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'JPEG', 10, position + 10, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    // Define the filename
+                    const studentName = document.getElementById('studentName').value.split(' ').join('_');
+                    const term = document.getElementById('term').value.split(' ').join('_');
+                    const academicYear = document.getElementById('academicYear').value.split('/').join('-');
+                    const filename = `receipt_${studentName}_${term}_${academicYear}.pdf`;
+
+                    pdf.save(filename);
+                });
+            }
+
+            // Event Listeners for the buttons
+            generateButton.addEventListener('click', generateReceipt);
+            downloadButton.addEventListener('click', downloadReceipt);
+        });
+    </script>
+</body>
+</html>
