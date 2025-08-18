@@ -43,6 +43,10 @@ def format_currency_filter(value):
         return f"₦{value:,.2f}"
     return value
 
+# A dummy variable to be replaced with the actual school short name from config.
+# This should be defined in a separate config file for best practice.
+SCHOOL_SHORT_NAME = 'AAM'
+
 def generate_reg_number():
     """
     Generates a unique registration number based on the school's short name,
@@ -828,7 +832,67 @@ def add_class():
             # Handle any other potential database errors
             db.session.rollback()
             flash(f'An unexpected error occurred: {e}', 'error')
+
+@main.route('/classes/delete/<int:class_id>', methods=['POST'])
+@login_required
+def delete_class(class_id):
+    """
+    Deletes a class. This route is a POST-only action to prevent
+    accidental deletion via a GET request.
+    """
+    if current_user.role != 'admin':
+        abort(403)
+    
+    class_to_delete = Class.query.get_or_404(class_id)
+    
+    try:
+        # Check if there are any students in this class
+        student_count = Student.query.filter_by(student_class=class_to_delete.name).count()
+        if student_count > 0:
+            flash(f'Cannot delete class "{class_to_delete.name}". It still has {student_count} students.', 'error')
             return redirect(url_for('main.manage_classes'))
 
-    # If it's a GET request, render the add class form or redirect
-    return render_template('add_class.html')
+        db.session.delete(class_to_delete)
+        db.session.commit()
+        flash(f'Class "{class_to_delete.name}" deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while deleting the class: {e}', 'error')
+    
+    return redirect(url_for('main.manage_classes'))
+
+@main.route('/classes/edit/<int:class_id>', methods=['GET', 'POST'])
+@login_required
+def edit_class(class_id):
+    """
+    Edits an existing class name.
+    """
+    if current_user.role != 'admin':
+        abort(403)
+    
+    class_to_edit = Class.query.get_or_404(class_id)
+    
+    if request.method == 'POST':
+        new_name = request.form.get('new_name', '').strip()
+        
+        if not new_name:
+            flash('Class name cannot be empty.', 'error')
+            return redirect(url_for('main.edit_class', class_id=class_id))
+            
+        # Check if the new name is already in use by another class
+        existing_class = Class.query.filter(Class.name == new_name, Class.id != class_id).first()
+        if existing_class:
+            flash(f"Error: The class '{new_name}' already exists.", 'error')
+            return redirect(url_for('main.edit_class', class_id=class_id))
+            
+        try:
+            # Update the class name in the database
+            class_to_edit.name = new_name
+            db.session.commit()
+            flash(f'Class updated to "{new_name}" successfully!', 'success')
+            return redirect(url_for('main.manage_classes'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred while updating the class: {e}', 'error')
+            
+    return render_template('edit_class.html', title='Edit Class', class_obj=class_to_edit)
